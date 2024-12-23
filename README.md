@@ -59,7 +59,8 @@ ip netns exec ns-example bash -i
 
 ### Systemd Service
 
-A `wg-quick@.service` equivalent called wg-netns@.service is part of the pacakge.
+A `wg-quick@.service` equivalent called `wg-netns@.service` is part of
+this pacakge.
 
 Place your profile in `/etc/wireguard/`, e.g. `example.json`, then
 enable the service.
