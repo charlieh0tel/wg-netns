@@ -11,17 +11,11 @@ import shlex
 import subprocess
 import sys
 
-try:
-    import yaml
-    YAML_SUPPORTED = True
-except ModuleNotFoundError:
-    YAML_SUPPORTED = False
-    yaml = NotImplemented
-
 WIREGUARD_DIR = Path('/etc/wireguard')
 NETNS_DIR = Path('/etc/netns')
-VERBOSE = 1
-SHELL = Path('/bin/sh')
+VERBOSE = 0
+WG = Path('/usr/bin/wg')
+IP = Path('/usr/sbin/ip')
 
 
 def main():
@@ -39,7 +33,6 @@ def cli(args):
     global WIREGUARD_DIR
     global NETNS_DIR
     global VERBOSE
-    global SHELL
 
     entrypoint = ArgumentParser(
         formatter_class=RawDescriptionHelpFormatter,
@@ -48,7 +41,6 @@ def cli(args):
             f'  WG_PROFILE_DIR      wireguard config dir, default: {WIREGUARD_DIR}\n'
             f'  WG_NETNS_DIR        network namespace config dir, default: {NETNS_DIR}\n'
             f'  WG_VERBOSE          print detailed output if 1, default: {VERBOSE}\n'
-            f'  WG_SHELL            program for execution of shell hooks, default: {SHELL}\n'
         ),
     )
 
@@ -61,27 +53,16 @@ def cli(args):
     parser.add_argument('-f', '--force', action='store_true', help='ignore errors')
     parser.add_argument('profile', type=lambda x: Path(x).expanduser(), metavar='PROFILE', help='name or path of profile')
 
-    parser = subparsers.add_parser('list', help='list network namespaces')
-
-    parser = subparsers.add_parser('switch', help='open shell in namespace')
-    parser.add_argument('netns', metavar='NETNS', help='network namespace name')
-
-    parser = subparsers.add_parser('exec', help='run command in namespace')
-    parser.add_argument('netns', metavar='NETNS', help='network namespace name')
-    parser.add_argument('command', nargs='+', help='command')
-
     opts = entrypoint.parse_args(args)
 
     try:
         WIREGUARD_DIR = Path(os.environ.get('WG_PROFILE_DIR', WIREGUARD_DIR))
         NETNS_DIR = Path(os.environ.get('WG_NETNS_DIR', NETNS_DIR))
         VERBOSE = int(os.environ.get('WG_VERBOSE', VERBOSE))
-        SHELL = Path(os.environ.get('WG_SHELL', SHELL))
     except Exception as e:
         raise RuntimeError(f'failed to load environment variable: {e} (e.__class__.__name__)') from e
 
     if opts.action == 'up':
-        _conditional_elevate()
         namespace = Namespace.from_profile(opts.profile)
         try:
             namespace.setup()
@@ -91,26 +72,10 @@ def cli(args):
             namespace.teardown(check=False)
             raise
     elif opts.action == 'down':
-        _conditional_elevate()
         namespace = Namespace.from_profile(opts.profile)
         namespace.teardown(check=not opts.force)
-    elif opts.action == 'list':
-        output = ip('-json', 'netns', capture=True)
-        if not output:
-            return
-        data = json.loads(output)
-        print('\n'.join(item['name'] for item in data))
-    elif opts.action == 'switch':
-        os.execvp('sudo', ['ip', 'ip', 'netns', 'exec', opts.netns, 'sudo', '-u', getpass.getuser(), '-D', Path.cwd().as_posix(), os.environ['SHELL'], '-i'])
-    elif opts.action == 'exec':
-        os.execvp('sudo', ['ip', 'ip', 'netns', 'exec', opts.netns, 'sudo', '-u', getpass.getuser(), '-D', Path.cwd().as_posix(), *opts.command])
     else:
         raise RuntimeError('congratulations, you reached unreachable code')
-
-
-def _conditional_elevate() -> None:
-    if os.getuid() != 0 and os.isatty(sys.stdin.fileno()):
-        os.execvp('sudo', [sys.argv[0], *sys.argv])
 
 
 @dataclasses.dataclass
@@ -211,62 +176,8 @@ class Interface:
 
 
 @dataclasses.dataclass
-class ScriptletItem:
-    command: str
-    host_namespace: bool = False
-
-    @classmethod
-    def from_str(cls, data: str) -> ScriptletItem:
-        return cls(command=data)
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> ScriptletItem:
-        data = {key.replace('-', '_'): value for key, value in data.items()}
-        host_namespace = bool(data.pop('host_namespace', None))
-        return cls(**data, host_namespace=host_namespace)
-
-    def run(self, netns: str|None):
-        if self.host_namespace or not netns:
-            host_eval(self.command)
-        else:
-            ip_netns_eval(self.command, netns=netns)
-
-
-@dataclasses.dataclass
-class Scriptlet:
-    items: list[ScriptletItem] = dataclasses.field(default_factory=list)
-
-    @classmethod
-    def from_value(cls, data) -> Scriptlet:
-        if isinstance(data, list):
-            return cls.from_list(data)
-        elif isinstance(data, str):
-            return cls.from_singleton(data)
-        else:
-            raise RuntimeError(f'unsupported scriptlet type: {data.__class__.__name__}')
-
-    @classmethod
-    def from_list(cls, data: list[Any]) -> Scriptlet:
-        items = [ScriptletItem.from_dict(item) for item in data]
-        return cls(items=items)
-
-    @classmethod
-    def from_singleton(cls, data) -> Scriptlet:
-        item = ScriptletItem.from_str(data)
-        return cls(items=[item])
-
-    def run(self, netns: str|None):
-        for item in self.items:
-            item.run(netns=netns)
-
-
-@dataclasses.dataclass
 class Namespace:
     name: str|None
-    pre_up: Optional[Scriptlet] = None
-    post_up: Optional[Scriptlet] = None
-    pre_down: Optional[Scriptlet] = None
-    post_down: Optional[Scriptlet] = None
     managed: bool = True
     dns_server: list[str] = dataclasses.field(default_factory=list)
     interfaces: list[Interface] = dataclasses.field(default_factory=list)
@@ -313,21 +224,13 @@ class Namespace:
         if self.managed and self.name:
             self._create()
             self._write_resolvconf()
-        if self.pre_up:
-            self.pre_up.run(netns=self.name)
         for interface in self.interfaces:
             interface.setup(self)
-        if self.post_up:
-            self.post_up.run(netns=self.name)
         return self
 
     def teardown(self, check=True) -> Namespace:
-        if self.pre_down:
-            self.pre_down.run(netns=self.name)
         for interface in self.interfaces:
             interface.teardown(self, check=check)
-        if self.post_down:
-            self.post_down.run(netns=self.name)
         if self.managed and self.exists():
             self._delete(check)
             self._delete_resolvconf()
@@ -365,30 +268,15 @@ class Namespace:
 
 
 def wg(*args, netns: str|None = None, stdin: str|None = None, check=True, capture=False) -> str:
-    if netns:
-        return ip_netns_exec('wg', *args, netns=netns, stdin=stdin, check=check, capture=capture)
-    else:
-        return run('wg', *args, stdin=stdin, check=check, capture=capture)
-
-
-def ip_netns_eval(*args, netns: str, stdin: str|None = None, check=True, capture=False) -> str:
-    return ip_netns_exec(SHELL, '-c', *args, netns=netns, stdin=stdin, check=check, capture=capture)
-
-
-def ip_netns_exec(*args, netns: str, stdin: str|None = None, check=True, capture=False) -> str:
-    return ip('netns', 'exec', netns, *args, stdin=stdin, check=check, capture=capture)
+    return run(WG, *args, stdin=stdin, check=check, capture=capture)
 
 
 def ip(*args, stdin: str|None = None, netns: str|None =None, check=True, capture=False) -> str:
-    return run('ip', *(['-n', netns] if netns else []), *args, stdin=stdin, check=check, capture=capture)
-
-
-def host_eval(*args, stdin: str|None = None, check=True, capture=False) -> str:
-    return run(SHELL, '-c', *args, stdin=stdin, check=check, capture=capture)
+    return run(IP, *(['-n', netns] if netns else []), *args, stdin=stdin, check=check, capture=capture)
 
 
 def run(*args, stdin: str|None = None, check=True, capture=False) -> str:
-    args = [shlex.quote(str(item)) for item in args if item is not None]
+    args = [str(item) for item in args if item is not None]
     if VERBOSE:
         print('>', ' '.join(args), file=sys.stderr)
     process = subprocess.run(args, input=stdin, text=True, capture_output=capture)
