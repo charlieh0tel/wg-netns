@@ -1,0 +1,2 @@
+[Unit]
+Description=WireGuard Tunnels via wg-netns(8)

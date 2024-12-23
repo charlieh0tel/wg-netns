@@ -2,3 +2,4 @@
 
 wgnetns/main.py => /usr/bin/wg-netns
 extras/wg-netns@.service => /lib/systemd/system/wg-netns@.service
+extras/wg-netns.target => /lib/systemd/system/wg-netns.target

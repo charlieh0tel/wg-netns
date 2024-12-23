@@ -1,7 +1,8 @@
 [Unit]
 Description=WireGuard Network Namespace (%i)
-Wants=network-online.target nss-lookup.target
 After=network-online.target nss-lookup.target
+Wants=network-online.target nss-lookup.target
+PartOf=wg-netns.target
 
 [Service]
 Type=oneshot
