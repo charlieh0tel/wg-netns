@@ -1,15 +1,15 @@
-Forked from https://github.com/dadevel/wg-netns
+Simplified fork of [wg-netns](https://github.com/dadevel/wg-netns).
 
-Simplified, eliminating use of sudo and shell calls to harden it.
+Notable changes:
 
-Debianized.
+* All use of sudo and shell have been eliminated to harden it.
+
+* Packaged for Debian-based distros.
 
 
 ## Usage
 
-First, create a configuration profile.
-
-Minimal JSON example:
+First, create a configuration profile:
 
 ~~~ json
 {
@@ -31,16 +31,18 @@ Minimal JSON example:
 }
 ~~~
 
-Now it's time to setup your new network namespace and all associated wireguard interfaces.
+Now it's time to setup your new network namespace and all associated
+wireguard interfaces.
 
 ~~~ bash
-(sudo) wg-netns up ./example.yaml
+wg-netns up ./example.yaml
 ~~~
 
-Profiles stored under `/etc/wireguard/` can be referenced by their name.
+Profiles stored under `/etc/wireguard/` can be referenced by their
+name.
 
 ~~~ bash
-(sudo) wg-netns up example
+wg-netns up example
 ~~~
 
 You can verify the success with a combination of `ip` and `wg`.
@@ -57,8 +59,10 @@ ip netns exec ns-example bash -i
 
 ### Systemd Service
 
-You can find a `wg-quick@.service` equivalent at [wg-netns@.service](./extras/wg-netns@.service).
-Place your profile in `/etc/wireguard/`, e.g. `example.json`, then start the service.
+A `wg-quick@.service` equivalent called wg-netns@.service is part of the pacakge.
+
+Place your profile in `/etc/wireguard/`, e.g. `example.json`, then
+enable the service.
 
 ~~~ bash
 systemctl enable --now wg-netns@example.service
