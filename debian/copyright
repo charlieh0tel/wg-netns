@@ -1,13 +1,14 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 
-This package was debianized by Christopher Hoover <ch@murgatroid.com>
-on Sun, 22 Dec 2024 18:45:11 -0800
+This package was simplified and debianized by Christopher Hoover
+<ch@murgatroid.com> on Sun, 22 Dec 2024 18:45:11 -0800
 
-Upstream-Contact: Daniel (https://github.com/dadevel)
+Original was written by Daniel and can be found at
+https://github.com/dadevel/wg-netns
 
 Files:
   *
-Copyright: 2020 Daniel
+Copyright: 2020 Daniel, 2024 Christopher Hoover
 License: MIT
   
   Permission is hereby granted, free of charge, to any person
