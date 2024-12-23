@@ -7,6 +7,7 @@ import dataclasses
 import getpass
 import json
 import os
+import shlex
 import subprocess
 import sys
 
@@ -19,7 +20,7 @@ except ModuleNotFoundError:
 
 WIREGUARD_DIR = Path('/etc/wireguard')
 NETNS_DIR = Path('/etc/netns')
-VERBOSE = 0
+VERBOSE = 1
 SHELL = Path('/bin/sh')
 
 
@@ -387,7 +388,7 @@ def host_eval(*args, stdin: str|None = None, check=True, capture=False) -> str:
 
 
 def run(*args, stdin: str|None = None, check=True, capture=False) -> str:
-    args = [str(item) if item is not None else '' for item in args]
+    args = [shlex.quote(str(item)) for item in args if item is not None]
     if VERBOSE:
         print('>', ' '.join(args), file=sys.stderr)
     process = subprocess.run(args, input=stdin, text=True, capture_output=capture)

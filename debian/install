@@ -1,4 +1,4 @@
 #!/usr/bin/dh-exec
 
 wgnetns/main.py => /usr/bin/wg-netns
-extras/wg-netns@.service => /lib/systemd/system/
+extras/wg-netns@.service => /lib/systemd/system/wg-netns@.service

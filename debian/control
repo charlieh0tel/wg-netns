@@ -4,7 +4,7 @@ Priority: optional
 Maintainer: Christopher Hoover <ch@murgatroid.com>
 Vcs-Browser: https://github.com/charlieh0tel/wg-netns
 Vcs-Git: git@github.com:charlieh0tel/wg-netns.git
-Build-Depends: debhelper-compat (= 13), dh-exec, python3, python3-dev, dh-sequence-python3
+Build-Depends: debhelper-compat (= 13), dh-exec, dh-python, python3-dev, 
 
 Package: wg-netns
 Architecture: all
