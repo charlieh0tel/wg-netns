@@ -1,3 +1,6 @@
+[![Build Debian Packages](https://github.com/charlieh0tel/wg-netns/actions/workflows/build.yml/badge.svg)](https://github.com/charlieh0tel/wg-netns/actions/workflows/build.yml)
+
+
 Simplified fork of [wg-netns](https://github.com/dadevel/wg-netns).
 
 Notable changes:

@@ -1,3 +1,10 @@
+wg-netns (1.0.1-1) unstable; urgency=low
+
+  * Kick off automation.
+
+ -- Christopher Hoover <ch@murgatoid.com>  Mon, 23 Dec 2024 19:50:41 -0800
+
+
 wg-netns (1.0.0-1) unstable; urgency=low
 
   * Initial release (Closes: #424242)

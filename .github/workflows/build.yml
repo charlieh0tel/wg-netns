@@ -1,0 +1,29 @@
+name: Build Debian Packages
+
+on: push
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Sources
+      uses: actions/checkout@v4
+
+    - name: Build Package
+      uses: jtdor/build-deb-action@v1
+      with:
+        before-build-hook: debchange --controlmaint --local="+ci${{ github.run_id }}~git$(git rev-parse --short HEAD)" "CI build"
+        extra-build-deps: devscripts git      
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: wg-netns
+        path: debian/artifacts/*.deb
+
+    - name: Upload Release
+      uses: ncipollo/release-action@v1
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        artifacts: "debian/artifacts/*.deb"
+
