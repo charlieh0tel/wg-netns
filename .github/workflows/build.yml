@@ -1,29 +1,19 @@
-name: Build Debian Packages
+name: Build Debian Package
 
-on: push
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: write
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout Sources
-      uses: actions/checkout@v4
-
-    - name: Build Package
-      uses: jtdor/build-deb-action@v1
-      with:
-        before-build-hook: debchange --controlmaint --local="+ci${{ github.run_id }}~git$(git rev-parse --short HEAD)" "CI build"
-        extra-build-deps: devscripts git      
-
-    - name: Upload Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: wg-netns
-        path: debian/artifacts/*.deb
-
-    - name: Upload Release
-      uses: ncipollo/release-action@v1
-      if: startsWith(github.ref, 'refs/tags/')
-      with:
-        artifacts: "debian/artifacts/*.deb"
-
+  build-deb:
+    uses: charlieh0tel/deb-workflows/.github/workflows/dpkg-build-deb.yml@main
+    with:
+      before-build-hook: debchange --controlmaint --local="+ci${{ github.run_id }}~git$(git rev-parse --short HEAD)" "CI build"
+      artifact-name: wg-netns
+    secrets: inherit
